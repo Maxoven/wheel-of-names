@@ -762,9 +762,11 @@
             setTimeout(() => {
                 const normalizedRotation = currentRotation % 360;
                 const anglePerSegment = 360 / names.length;
-                // Adjust for pointer at top (subtract 90 degrees and invert)
-                const adjustedRotation = (450 - normalizedRotation) % 360;
-                const winnerIndex = Math.floor(adjustedRotation / anglePerSegment);
+                // Pointer is at top (0 degrees), calculate which segment it points to
+                // We need to account for the wheel rotating clockwise
+                const pointerAngle = 0; // Pointer at top
+                const adjustedRotation = (360 - normalizedRotation + pointerAngle) % 360;
+                const winnerIndex = Math.floor(adjustedRotation / anglePerSegment) % names.length;
                 const winner = names[winnerIndex];
 
                 showWinner(winner);
