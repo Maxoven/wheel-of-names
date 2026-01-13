@@ -639,9 +639,10 @@
             }
 
             const anglePerSegment = (2 * Math.PI) / names.length;
+            const startOffset = -Math.PI / 2; // Start from top (12 o'clock)
 
             names.forEach((name, index) => {
-                const startAngle = index * anglePerSegment;
+                const startAngle = startOffset + (index * anglePerSegment);
                 const endAngle = startAngle + anglePerSegment;
 
                 // Draw segment
@@ -667,7 +668,7 @@
                 ctx.shadowBlur = 4;
                 ctx.shadowOffsetX = 2;
                 ctx.shadowOffsetY = 2;
-                ctx.fillText(name, radius * 0.15, 0);
+                ctx.fillText(name, radius * 0.25, 0); // Moved from 0.15 to 0.25 for better visibility
                 ctx.restore();
             });
         }
@@ -758,24 +759,35 @@
             currentRotation += totalRotation;
             canvas.style.transform = `rotate(${currentRotation}deg)`;
 
+            // Play continuous rotation sound during spin
+            playSpinSound();
+
             // Calculate winner after spin
             setTimeout(() => {
-                const normalizedRotation = currentRotation % 360;
+                // The wheel rotates clockwise (transform: rotate)
+                // The pointer is fixed at the top
+                // We need to find which segment ends up at the top after rotation
+                
+                const finalRotation = currentRotation % 360;
                 const anglePerSegment = 360 / names.length;
-                // Pointer is at top (0 degrees), calculate which segment it points to
-                // We need to account for the wheel rotating clockwise
-                const pointerAngle = 0; // Pointer at top
-                const adjustedRotation = (360 - normalizedRotation + pointerAngle) % 360;
-                const winnerIndex = Math.floor(adjustedRotation / anglePerSegment) % names.length;
-                const winner = names[winnerIndex];
+                
+                // When the wheel rotates clockwise by X degrees,
+                // the segment that was at position X is now at the top
+                // We need to reverse the rotation to find the original position
+                const reversedRotation = (360 - finalRotation) % 360;
+                const segmentIndex = Math.floor(reversedRotation / anglePerSegment) % names.length;
+                const winner = names[segmentIndex];
+
+                console.log('Final rotation:', finalRotation);
+                console.log('Reversed rotation:', reversedRotation);
+                console.log('Angle per segment:', anglePerSegment);
+                console.log('Segment index:', segmentIndex);
+                console.log('Winner:', winner);
 
                 showWinner(winner);
                 isSpinning = false;
                 document.getElementById('spinButton').disabled = false;
             }, 4000);
-
-            // Play sound effect (optional - using Web Audio API)
-            playSpinSound();
         }
 
         // Show winner modal
@@ -809,26 +821,39 @@
             }
         }
 
-        // Play spin sound (simple beep using Web Audio API)
+        // Play continuous ticking sound during spin
         function playSpinSound() {
             try {
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-
-                oscillator.frequency.value = 800;
-                oscillator.type = 'sine';
-
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.5);
+                const duration = 4; // 4 seconds to match spin duration
+                const ticksPerSecond = 10; // Start with 10 ticks per second
+                const totalTicks = Math.floor(duration * ticksPerSecond * 1.5); // More ticks at the beginning
+                
+                // Create ticking sounds that slow down over time
+                for (let i = 0; i < totalTicks; i++) {
+                    const time = audioContext.currentTime + (i / ticksPerSecond) * Math.pow(1.1, i / 10);
+                    
+                    if (time > audioContext.currentTime + duration) break;
+                    
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = 800;
+                    oscillator.type = 'square';
+                    
+                    gainNode.gain.setValueAtTime(0, time);
+                    gainNode.gain.linearRampToValueAtTime(0.1, time + 0.001);
+                    gainNode.gain.linearRampToValueAtTime(0, time + 0.05);
+                    
+                    oscillator.start(time);
+                    oscillator.stop(time + 0.05);
+                }
             } catch (e) {
                 // Silent fail if audio not supported
+                console.log('Audio not supported');
             }
         }
 
